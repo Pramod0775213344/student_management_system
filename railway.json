@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "public": true,
+  "services": {
+    "backend": {
+      "source": {
+        "root": "backend",
+        "repo": null
+      },
+      "build": {
+        "builder": "DOCKERFILE"
+      },
+      "deploy": {
+        "numReplicas": 1,
+        "healthCheckPath": "/api/health",
+        "healthCheckTimeout": 10
+      }
+    },
+    "frontend": {
+      "source": {
+        "root": "frontend",
+        "repo": null
+      },
+      "build": {
+        "builder": "DOCKERFILE"
+      }
+    }
+  }
+}
