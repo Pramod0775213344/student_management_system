@@ -49,3 +49,42 @@ exports.login = async (req, res) => {
     res.status(500).send("Server error");
   }
 };
+// Admin account creation logic
+exports.createAccount = async (req, res) => {
+  const { email, password, role, linkedId } = req.body || {};
+
+  if (!email || !password || !role) {
+    return res.status(400).send("Email, password, and role are required.");
+  }
+
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).send("User already exists with this email.");
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+      role,
+      studentId: role === "student" ? linkedId : undefined,
+      teacherId: role === "teacher" ? linkedId : undefined,
+    });
+
+    await newUser.save();
+
+    res.status(201).json({
+      message: "Account created successfully",
+      user: {
+        id: newUser._id,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server error during account creation");
+  }
+};

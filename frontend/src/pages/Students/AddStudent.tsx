@@ -1,205 +1,357 @@
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
+import ComponentCard from "../../components/common/ComponentCard";
 import Label from "../../components/form/Label";
-import Input from "../../components/form/input/InputField";
-import DatePicker from "../../components/form/date-picker";
+import InputField from "../../components/form/input/InputField";
 import Select from "../../components/form/Select";
+import DatePicker from "../../components/form/date-picker";
+import Button from "../../components/ui/button/Button";
+
+interface APIItem {
+  _id: string;
+  name?: string;
+  section?: string;
+  status?: string;
+}
+
+const initialFormData = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  contactNumber: "",
+  dob: "",
+  gender: "",
+  academicYear: "",
+  classGrade: "",
+  address: "",
+  admissionDate: new Date().toISOString().split("T")[0],
+  guardianName: "",
+  guardianContact: "",
+  image: "",
+};
 
 export default function AddStudent() {
-  return (
-    <div>
-      <PageMeta title="Add Student | EduSphere" description="Add Student page for EduSphere" />
-      <PageBreadcrumb pageTitle="Add Student" />
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState(initialFormData);
+  
+  const [academicYears, setAcademicYears] = useState<APIItem[]>([]);
+  const [classes, setClasses] = useState<APIItem[]>([]);
+
+  const fetchStudent = useCallback(async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/students/${id}`, {
+        headers: { Authorization: localStorage.getItem("token") || "" },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Safe mapping with fallbacks to avoid null/undefined issues
+        setFormData({
+          ...initialFormData,
+          ...data,
+          dob: data.dob ? new Date(data.dob).toISOString().split("T")[0] : "",
+          admissionDate: data.admissionDate ? new Date(data.admissionDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          academicYear: data.academicYear?._id || data.academicYear || "",
+          classGrade: data.classGrade?._id || data.classGrade || "",
+          guardianName: data.guardianName || "",
+          guardianContact: data.guardianContact || "",
+          address: data.address || "",
+          email: data.email || "",
+          firstName: data.firstName || "",
+          lastName: data.lastName || "",
+          gender: data.gender || "",
+          contactNumber: data.contactNumber || "",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load student details");
+    }
+  }, [id]);
+
+  const fetchInitialData = useCallback(async () => {
+    try {
+      const headers = { Authorization: localStorage.getItem("token") || "" };
+      const yearsRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/academic/years`, { headers });
+      if (yearsRes.ok) {
+        const yearsData = await yearsRes.json();
+        setAcademicYears(yearsData);
+        if (!id) {
+          const active = yearsData.find((y: APIItem) => y.status === "Active");
+          if (active) setFormData(p => ({ ...p, academicYear: active._id }));
+        }
+      }
+    } catch {
+      toast.error("Failed to load academic sessions");
+    }
+  }, [id]);
+
+  const fetchClasses = useCallback(async () => {
+    if (!formData.academicYear) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/academic/classes/${formData.academicYear}`, {
+        headers: { Authorization: localStorage.getItem("token") || "" }
+      });
+      if (res.ok) setClasses(await res.json());
+    } catch {
+      toast.error("Failed to load classes");
+    }
+  }, [formData.academicYear]);
+
+  useEffect(() => {
+    fetchInitialData();
+    if (id) fetchStudent();
+  }, [id, fetchInitialData, fetchStudent]);
+
+  useEffect(() => {
+    fetchClasses();
+  }, [fetchClasses]);
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.firstName.trim()) newErrors.firstName = "First name is required";
+    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required";
+    if (!formData.dob) newErrors.dob = "Date of birth is required";
+    if (!formData.gender) newErrors.gender = "Please select a gender";
+    if (!formData.academicYear) newErrors.academicYear = "Please select an academic year";
+    if (!formData.classGrade) newErrors.classGrade = "Please select a class";
+    if (!formData.guardianName.trim()) newErrors.guardianName = "Guardian name is required";
+    if (!formData.guardianContact.trim()) newErrors.guardianContact = "Emergency contact is required";
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[name];
+        return updated;
+      });
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    handleChange(e.target.name, e.target.value);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) {
+      toast.error("Please fix the errors in the form");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const url = id 
+        ? `${import.meta.env.VITE_API_BASE_URL}/api/students/${id}`
+        : `${import.meta.env.VITE_API_BASE_URL}/api/students`;
       
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
-        <h3 className="mb-5 text-lg font-semibold text-gray-800 dark:text-white/90">
-          Student Registration Form
-        </h3>
-        
-        <form className="space-y-8">
-          {/* --- 1. Personal Information --- */}
-          <div>
-            <h4 className="mb-4 text-theme-md font-medium text-gray-800 dark:text-white/90">
-              1. Personal Information
-            </h4>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input type="text" id="fullName" placeholder="Enter full name" />
-              </div>
-              
-              <div>
-                <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                <DatePicker id="dateOfBirth" placeholder="Select Date of Birth" />
-              </div>
+      const method = id ? "PUT" : "POST";
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: localStorage.getItem("token") || "",
+        },
+        body: JSON.stringify(formData),
+      });
 
-              <div>
-                <Label htmlFor="gender">Gender</Label>
-                <Select
-                  options={[
-                    { value: "male", label: "Male" },
-                    { value: "female", label: "Female" },
-                    { value: "other", label: "Other" },
-                  ]}
-                  placeholder="Select Gender"
-                  onChange={(val) => console.log(val)}
-                />
-              </div>
+      if (response.ok) {
+        toast.success(id ? "Student updated successfully" : "Student registered successfully");
+        setIsSubmitted(true);
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || "Something went wrong");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Connection error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-              <div>
-                <Label htmlFor="contactNumber">Contact Number</Label>
-                <Input type="text" id="contactNumber" placeholder="Enter contact number" />
-              </div>
-
-              <div className="md:col-span-2">
-                <Label htmlFor="address">Address</Label>
-                <Input type="text" id="address" placeholder="Enter residence address" />
-              </div>
+  if (isSubmitted) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <ComponentCard title="" desc="">
+          <div className="text-center py-10 px-6">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-100 text-success-600">
+              <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">Registration Complete</h3>
+            <p className="mb-8 text-gray-500 dark:text-gray-400">Student information has been successfully saved to the EduSphere database.</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <Button onClick={() => navigate("/students")}>View Student Directory</Button>
+              <Button variant="outline" onClick={() => { setIsSubmitted(false); setFormData(initialFormData); }}>Register Another Student</Button>
             </div>
           </div>
-
-          {/* --- 2. Academic Information --- */}
-          <div>
-            <h4 className="mb-4 mt-6 text-theme-md font-medium text-gray-800 dark:text-white/90">
-              2. Academic Information
-            </h4>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <Label htmlFor="gradeClass">Grade / Class</Label>
-                <Select
-                  options={[
-                    { value: "grade-1", label: "Grade 1" },
-                    { value: "grade-2", label: "Grade 2" },
-                    { value: "grade-3", label: "Grade 3" },
-                    { value: "grade-4", label: "Grade 4" },
-                    { value: "grade-5", label: "Grade 5" },
-                  ]}
-                  placeholder="Select Class"
-                  onChange={(val) => console.log(val)}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="admissionNumber">Admission Number</Label>
-                <Input type="text" id="admissionNumber" placeholder="e.g. ADM-2024-001" />
-              </div>
-
-              <div>
-                <Label htmlFor="admissionDate">Admission Date</Label>
-                <DatePicker id="admissionDate" placeholder="Select Admission Date" />
-              </div>
-
-              <div>
-                <Label htmlFor="academicYear">Academic Year</Label>
-                <Select
-                  options={[
-                    { value: "2023-2024", label: "2023-2024" },
-                    { value: "2024-2025", label: "2024-2025" },
-                    { value: "2025-2026", label: "2025-2026" },
-                  ]}
-                  placeholder="Select Academic Year"
-                  onChange={(val) => console.log(val)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* --- 3. Guardian / Parent Information --- */}
-          <div>
-            <h4 className="mb-4 mt-6 text-theme-md font-medium text-gray-800 dark:text-white/90">
-              3. Guardian / Parent Information
-            </h4>
-            
-            {/* Primary Parent */}
-            <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-white/[0.02]">
-              <h5 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Primary Guardian / Parent
-              </h5>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
-                  <Label htmlFor="primaryParentName">Name</Label>
-                  <Input type="text" id="primaryParentName" placeholder="Enter name" />
-                </div>
-
-                <div>
-                  <Label htmlFor="primaryRelationship">Relationship</Label>
-                  <Select
-                    options={[
-                      { value: "father", label: "Father" },
-                      { value: "mother", label: "Mother" },
-                      { value: "guardian", label: "Guardian" },
-                    ]}
-                    placeholder="Select Relationship"
-                    onChange={(val) => console.log(val)}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="primaryParentContact">Contact Number</Label>
-                  <Input type="text" id="primaryParentContact" placeholder="Enter contact number" />
-                </div>
-
-                <div>
-                  <Label htmlFor="primaryParentEmail">Email Address (Optional)</Label>
-                  <Input type="email" id="primaryParentEmail" placeholder="Enter valid email address" />
-                </div>
-              </div>
-            </div>
-
-            {/* Secondary Parent */}
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-white/[0.02]">
-              <h5 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Secondary Guardian / Parent (Optional)
-              </h5>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
-                  <Label htmlFor="secondaryParentName">Name</Label>
-                  <Input type="text" id="secondaryParentName" placeholder="Enter name" />
-                </div>
-
-                <div>
-                  <Label htmlFor="secondaryRelationship">Relationship</Label>
-                  <Select
-                    options={[
-                      { value: "father", label: "Father" },
-                      { value: "mother", label: "Mother" },
-                      { value: "guardian", label: "Guardian" },
-                    ]}
-                    placeholder="Select Relationship"
-                    onChange={(val) => console.log(val)}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="secondaryParentContact">Contact Number</Label>
-                  <Input type="text" id="secondaryParentContact" placeholder="Enter contact number" />
-                </div>
-
-                <div>
-                  <Label htmlFor="secondaryParentEmail">Email Address (Optional)</Label>
-                  <Input type="email" id="secondaryParentEmail" placeholder="Enter valid email address" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 mt-8">
-            <button
-              type="button"
-              className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 focus:ring-4 focus:ring-brand-500/20 transition-colors"
-            >
-              Save Student
-            </button>
-          </div>
-        </form>
+        </ComponentCard>
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-transparent p-4 lg:p-8">
+      <PageMeta title={`${id ? "Edit" : "Add"} Student | EduSphere`} description="Student registration form" />
+      <PageBreadcrumb pageTitle={id ? "Edit Student Profile" : "New Student Registration"} />
+
+      <form onSubmit={handleSubmit} className="mt-8 space-y-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-8">
+            <ComponentCard title="Personal Information" desc="Full legal name and basic contact details">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div className="col-span-1">
+                  <Label>First Name</Label>
+                  <InputField
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleInputChange}
+                    placeholder="Enter first name"
+                    error={!!errors.firstName}
+                    hint={errors.firstName}
+                  />
+                </div>
+                <div className="col-span-1">
+                  <Label>Last Name</Label>
+                  <InputField
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleInputChange}
+                    placeholder="Enter last name"
+                    error={!!errors.lastName}
+                    hint={errors.lastName}
+                  />
+                </div>
+                <div className="col-span-1">
+                  <Label>Date of Birth</Label>
+                  <DatePicker
+                    id="dob"
+                    defaultDate={formData.dob}
+                    onChange={(_, dateStr) => handleChange("dob", dateStr)}
+                    placeholder="Select Date"
+                  />
+                  {errors.dob && <p className="mt-1 text-xs text-error-500">{errors.dob}</p>}
+                </div>
+                <div className="col-span-1">
+                  <Label>Gender</Label>
+                  <Select
+                    options={[
+                      { value: "Male", label: "Male" },
+                      { value: "Female", label: "Female" },
+                      { value: "Other", label: "Other" },
+                    ]}
+                    value={formData.gender}
+                    onChange={(val) => handleChange("gender", val)}
+                    placeholder="Select Gender"
+                    error={!!errors.gender}
+                    hint={errors.gender}
+                  />
+                </div>
+              </div>
+            </ComponentCard>
+
+            <ComponentCard title="Academic Placement" desc="Session, class and admission info">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div className="col-span-1">
+                  <Label>Academic Session</Label>
+                  <Select
+                    options={academicYears.map(y => ({ value: y._id, label: y.name || "" }))}
+                    value={formData.academicYear}
+                    onChange={(val) => handleChange("academicYear", val)}
+                    placeholder="Select Session"
+                    error={!!errors.academicYear}
+                    hint={errors.academicYear}
+                  />
+                </div>
+                <div className="col-span-1">
+                  <Label>Class / Grade</Label>
+                  <Select
+                    options={classes.map(c => ({ value: c._id, label: `${c.name} - ${c.section}` }))}
+                    value={formData.classGrade}
+                    onChange={(val) => handleChange("classGrade", val)}
+                    placeholder="Select Class"
+                    error={!!errors.classGrade}
+                    hint={errors.classGrade}
+                  />
+                </div>
+                <div className="col-span-full">
+                  <Label>Date of Admission</Label>
+                  <DatePicker
+                    id="admissionDate"
+                    defaultDate={formData.admissionDate}
+                    onChange={(_, dateStr) => handleChange("admissionDate", dateStr)}
+                    placeholder="Select Admission Date"
+                  />
+                </div>
+              </div>
+            </ComponentCard>
+          </div>
+
+          <div className="lg:col-span-1 space-y-8">
+            <ComponentCard title="Guardian Details" desc="Emergency contact information">
+              <div className="space-y-6">
+                <div>
+                  <Label>Guardian Name</Label>
+                  <InputField
+                    type="text"
+                    name="guardianName"
+                    value={formData.guardianName}
+                    onChange={handleInputChange}
+                    placeholder="Enter full name"
+                    error={!!errors.guardianName}
+                    hint={errors.guardianName}
+                  />
+                </div>
+                <div>
+                  <Label>Contact Number</Label>
+                  <InputField
+                    type="text"
+                    name="guardianContact"
+                    value={formData.guardianContact}
+                    onChange={handleInputChange}
+                    placeholder="Enter contact number"
+                    error={!!errors.guardianContact}
+                    hint={errors.guardianContact}
+                  />
+                </div>
+              </div>
+            </ComponentCard>
+
+            <ComponentCard title="Action Center" desc="Finalize the registration">
+              <div className="space-y-4">
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Processing..." : id ? "Update Data" : "Register Student"}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => navigate("/students")}
+                  type="button"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </ComponentCard>
+          </div>
+        </div>
+      </form>
     </div>
   );
 }

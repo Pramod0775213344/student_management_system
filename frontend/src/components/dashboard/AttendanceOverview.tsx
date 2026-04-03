@@ -1,4 +1,6 @@
-// AttendanceOverview - Professional SVG line chart with gradient fill & stats
+import Chart from "react-apexcharts";
+import { ApexOptions } from "apexcharts";
+
 const monthlyData = [
   { month: "Jan", rate: 91 },
   { month: "Feb", rate: 88 },
@@ -14,28 +16,7 @@ const monthlyData = [
   { month: "Dec", rate: 82 },
 ];
 
-const W = 300;
-const H = 90;
-const PAD = 8;
-
-function getCoords(data: { rate: number }[]) {
-  const min = 70;
-  const max = 100;
-  return data.map((d, i) => ({
-    x: PAD + (i / (data.length - 1)) * (W - PAD * 2),
-    y: H - PAD - ((d.rate - min) / (max - min)) * (H - PAD * 2),
-  }));
-}
-
 export default function AttendanceOverview() {
-  const coords = getCoords(monthlyData);
-  const linePts = coords.map((c) => `${c.x},${c.y}`).join(" ");
-  const areaPts = [
-    `${coords[0].x},${H}`,
-    ...coords.map((c) => `${c.x},${c.y}`),
-    `${coords[coords.length - 1].x},${H}`,
-  ].join(" ");
-
   const avg = Math.round(monthlyData.reduce((s, d) => s + d.rate, 0) / monthlyData.length);
   const highest = Math.max(...monthlyData.map((d) => d.rate));
   const lowest = Math.min(...monthlyData.map((d) => d.rate));
@@ -43,119 +24,79 @@ export default function AttendanceOverview() {
   const prev = monthlyData[monthlyData.length - 2].rate;
   const delta = last - prev;
 
+  const chartOptions: ApexOptions = {
+    chart: {
+      type: "area",
+      toolbar: { show: false },
+      animations: { enabled: true, easing: "easeinout", speed: 800 },
+    },
+    stroke: { curve: "smooth", width: 3 },
+    fill: {
+      type: "gradient",
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.5,
+        opacityTo: 0,
+        stops: [0, 100],
+      },
+    },
+    dataLabels: { enabled: false },
+    grid: {
+      strokeDashArray: 5,
+      borderColor: "#e2e8f0",
+    },
+    colors: ["#465FFF"],
+    xaxis: {
+      categories: monthlyData.map((d) => d.month),
+      labels: { style: { colors: "#94a3b8", fontSize: "10px" } },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      min: 60,
+      max: 100,
+      labels: { style: { colors: "#94a3b8", fontSize: "10px" } },
+    },
+    tooltip: {
+      theme: "dark",
+      x: { show: true },
+      y: { formatter: (val) => `${val}%` },
+    },
+  };
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-white">
-            Attendance Trend
-          </h3>
-          <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-            Monthly rate (%) · 2024–2025
-          </p>
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Attendance Trend</h3>
+          <p className="mt-1 text-xs text-gray-500">Monthly Average (%) · 2024–2025</p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-extrabold text-gray-800 dark:text-white leading-none">
-            {last}%
-          </p>
-          <span
-            className={`inline-flex items-center gap-0.5 text-[11px] font-semibold ${
-              delta >= 0 ? "text-emerald-500" : "text-red-500"
-            }`}
-          >
-            {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}% vs Nov
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{last}%</p>
+          <span className={`text-[11px] font-bold ${delta >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+            {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}% <span className="font-medium text-gray-400">vs Prev</span>
           </span>
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="px-4 pt-4 pb-0">
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className="w-full"
-          preserveAspectRatio="none"
-          style={{ height: 90 }}
-        >
-          <defs>
-            <linearGradient id="attGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#465FFF" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#465FFF" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-
-          {/* horizontal grid lines */}
-          {[75, 80, 85, 90, 95].map((r) => {
-            const y = H - PAD - ((r - 70) / 30) * (H - PAD * 2);
-            return (
-              <line
-                key={r}
-                x1={PAD}
-                y1={y}
-                x2={W - PAD}
-                y2={y}
-                stroke="currentColor"
-                strokeWidth="0.4"
-                strokeDasharray="3,3"
-                className="text-gray-200 dark:text-gray-700"
-              />
-            );
-          })}
-
-          {/* Area fill */}
-          <polygon points={areaPts} fill="url(#attGrad)" />
-
-          {/* Line */}
-          <polyline
-            points={linePts}
-            fill="none"
-            stroke="#465FFF"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* Dots */}
-          {coords.map((c, i) => (
-            <circle
-              key={i}
-              cx={c.x}
-              cy={c.y}
-              r={i === monthlyData.length - 1 ? 4 : 2.5}
-              fill={i === monthlyData.length - 1 ? "#465FFF" : "white"}
-              stroke="#465FFF"
-              strokeWidth={i === monthlyData.length - 1 ? 2 : 1.5}
-            />
-          ))}
-        </svg>
-
-        {/* Month labels */}
-        <div className="flex justify-between px-0 pb-3 mt-1">
-          {monthlyData.map((d, i) => (
-            <span
-              key={d.month}
-              className={`text-[9px] font-medium ${
-                i === monthlyData.length - 1
-                  ? "text-brand-500 dark:text-brand-400"
-                  : "text-gray-400 dark:text-gray-600"
-              }`}
-            >
-              {d.month}
-            </span>
-          ))}
-        </div>
+      <div className="h-[200px]">
+        <Chart
+          options={chartOptions}
+          series={[{ name: "Attendance", data: monthlyData.map((d) => d.rate) }]}
+          type="area"
+          height="100%"
+        />
       </div>
 
-      {/* Stats footer */}
-      <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800 border-t border-gray-100 dark:border-gray-800">
+      <div className="mt-6 flex items-center justify-between border-t border-gray-100 dark:border-gray-800 pt-4">
         {[
           { label: "Highest", value: `${highest}%`, color: "text-emerald-500" },
-          { label: "Average", value: `${avg}%`, color: "text-gray-800 dark:text-white" },
+          { label: "Average", value: `${avg}%`, color: "text-brand-500" },
           { label: "Lowest", value: `${lowest}%`, color: "text-red-500" },
         ].map((s) => (
-          <div key={s.label} className="py-3 text-center">
+          <div key={s.label} className="text-center flex-1">
             <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{s.label}</p>
+            <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">{s.label}</p>
           </div>
         ))}
       </div>

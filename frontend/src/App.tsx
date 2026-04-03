@@ -19,6 +19,7 @@ import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import { ReactNode } from "react";
+import { Toaster } from "react-hot-toast";
 
 // --- NEW IMPORTS
 import AddStudent from './pages/Students/AddStudent';
@@ -66,6 +67,7 @@ import Users from './pages/Administration/Users';
 import RolesPermissions from './pages/Administration/RolesPermissions';
 import SystemSettings from './pages/Administration/SystemSettings';
 import BranchSchoolSetup from './pages/Administration/BranchSchoolSetup';
+import CreateUser from './pages/Administration/CreateUser';
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const token = localStorage.getItem("token");
@@ -78,9 +80,55 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
 export default function App() {
   return (
     <>
+      {/* Toast notifications header ekata yataren nathi wenna z-index eka saha top offset eka haduwa */}
+      {/* Toast notifications visibility eka wadi karanna colors saha style eka customize kara */}
+      <Toaster 
+        position="top-right" 
+        reverseOrder={false} 
+        containerStyle={{ 
+          top: 80,
+          zIndex: 999999 
+        }} 
+        toastOptions={{
+          style: {
+            background: "rgba(16, 24, 40, 0.85)", // Dark Gray 900 with opacity
+            backdropFilter: "blur(12px)", // Modern glassmorphism blur
+            color: "#fff",
+            borderRadius: "16px",
+            fontSize: "14px",
+            fontWeight: "600",
+            padding: "14px 24px",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
+          },
+          success: {
+            style: {
+              background: "rgba(3, 152, 85, 0.9)", // Success 600 with opacity
+              backdropFilter: "blur(12px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+            },
+            iconTheme: {
+              primary: "#fff",
+              secondary: "#039855",
+            },
+          },
+          error: {
+            style: {
+              background: "rgba(217, 45, 32, 0.9)", // Error 600 with opacity
+              backdropFilter: "blur(12px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+            },
+            iconTheme: {
+              primary: "#fff",
+              secondary: "#d92d20",
+            },
+          },
+        }}
+      />
       <Router>
         <ScrollToTop />
         <Routes>
+          <Route path="/" element={<Navigate to="/signin" replace />} />
           {/* Dashboard Layout */}
           <Route
             element={
@@ -93,8 +141,9 @@ export default function App() {
 
             {/* --- NEW ROUTES --- */}
             <Route path="/students/add-student" element={<AddStudent />} />
+            <Route path="/students/edit-student/:id" element={<AddStudent />} />
             <Route path="/students/student-list" element={<StudentList />} />
-            <Route path="/students/student-profile" element={<StudentProfile />} />
+            <Route path="/students/student-profile/:id" element={<StudentProfile />} />
             <Route path="/students/enrollment-admission" element={<EnrollmentAdmission />} />
             <Route path="/students/bulk-import" element={<BulkImport />} />
             <Route path="/staff/add-teacher" element={<AddTeacher />} />
@@ -137,6 +186,7 @@ export default function App() {
             <Route path="/administration/roles-permissions" element={<RolesPermissions />} />
             <Route path="/administration/system-settings" element={<SystemSettings />} />
             <Route path="/administration/branch-school-setup" element={<BranchSchoolSetup />} />
+            <Route path="/administration/create-user" element={<CreateUser />} />
 
             {/* Others Page */}
             <Route path="/profile" element={<UserProfiles />} />

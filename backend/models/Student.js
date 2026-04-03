@@ -18,13 +18,29 @@ const studentSchema = new mongoose.Schema({
   dob: Date,
   contactNumber: String,
   address: String,
-  grade: String,
-  section: String,
+  // String base grade/section wenuwata ClassGrade ref eka use karanawa
+  classGrade: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ClassGrade",
+  },
+  parents: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Parent",
+  }],
+  academicYear: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "AcademicYear",
+  },
   guardianName: String,
   guardianContact: String,
   admissionDate: {
     type: Date,
     default: Date.now,
+  },
+  status: {
+    type: String,
+    enum: ["Active", "Inactive", "Alumni", "Dropped"],
+    default: "Active",
   },
 }, { timestamps: true });
 

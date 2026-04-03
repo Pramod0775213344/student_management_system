@@ -7,42 +7,39 @@ import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
 import Button from "../ui/button/Button";
 
+import { toast } from "react-hot-toast";
+
 export default function SignInForm() {
   const navigate = useNavigate(); //navigate karanna danne
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
+    const loginPromise = fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    }).then(async (response) => {
       const data = await response.json();
-
       if (!response.ok) {
-        setError(data.message);
-        return;
+        throw new Error(data.message || "Invalid email or password");
       }
-
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-
       navigate("/dashboard");
-    } catch (error) {
-      console.error("Login error:", error);
-      setError("An error occurred during login");
-    }
+      return data;
+    });
+
+    toast.promise(loginPromise, {
+      loading: "Signing in...",
+      success: "Welcome back!",
+      error: (err) => err.message,
+    });
   };
 
   return (
@@ -119,7 +116,6 @@ export default function SignInForm() {
                       )}
                     </span>
                   </div>
-                  {error && <div className="p-3 mb-4 text-sm text-red-500 bg-red-100 rounded-lg">{error}</div>}
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -131,7 +127,7 @@ export default function SignInForm() {
                   </Link>
                 </div>
                 <div>
-                  <Button className="w-full" size="sm">
+                  <Button className="w-full" size="sm" type="submit">
                     Sign in
                   </Button>
                 </div>

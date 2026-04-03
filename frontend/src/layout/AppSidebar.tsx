@@ -23,7 +23,6 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "Add Student", path: "/students/add-student", pro: false },
       { name: "Student List", path: "/students/student-list", pro: false },
-      { name: "Student Profile", path: "/students/student-profile", pro: false },
       { name: "Enrollment / Admission", path: "/students/enrollment-admission", pro: false },
       { name: "Bulk Import", path: "/students/bulk-import", pro: false },
     ],

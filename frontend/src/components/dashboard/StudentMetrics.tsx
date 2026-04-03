@@ -1,14 +1,15 @@
-// StudentMetrics - Professional stat cards with gradient icons & sparklines
+import Chart from "react-apexcharts";
 import { GroupIcon, CheckCircleIcon, TimeIcon, TaskIcon, ArrowUpIcon, ArrowDownIcon } from "../../icons";
+import { ApexOptions } from "apexcharts";
 
 interface Stat {
   title: string;
   value: string;
   sub: string;
-  trend: number; // positive = up, negative = down
+  trend: number;
   icon: React.ReactNode;
-  gradient: string;
-  sparkline: number[]; // 6 values for mini sparkline
+  color: string;
+  sparkline: number[];
 }
 
 const stats: Stat[] = [
@@ -17,7 +18,7 @@ const stats: Stat[] = [
     value: "1,248",
     sub: "Enrolled this term",
     trend: 12,
-    gradient: "from-brand-500 to-brand-400",
+    color: "#465FFF",
     icon: <GroupIcon className="size-5 text-white" />,
     sparkline: [40, 55, 48, 65, 72, 80],
   },
@@ -26,7 +27,7 @@ const stats: Stat[] = [
     value: "1,189",
     sub: "Currently enrolled",
     trend: 3.2,
-    gradient: "from-emerald-500 to-green-400",
+    color: "#10b981",
     icon: <CheckCircleIcon className="size-5 text-white" />,
     sparkline: [60, 62, 58, 70, 75, 80],
   },
@@ -35,7 +36,7 @@ const stats: Stat[] = [
     value: "87.4%",
     sub: "This month",
     trend: -2.1,
-    gradient: "from-amber-500 to-orange-400",
+    color: "#f59e0b",
     icon: <TimeIcon className="size-5 text-white" />,
     sparkline: [90, 88, 92, 85, 84, 87],
   },
@@ -44,93 +45,88 @@ const stats: Stat[] = [
     value: "42",
     sub: "This quarter",
     trend: 18,
-    gradient: "from-violet-500 to-purple-400",
+    color: "#8b5cf6",
     icon: <TaskIcon className="size-5 text-white" />,
     sparkline: [10, 18, 14, 22, 32, 42],
   },
 ];
 
-function Sparkline({ data }: { data: number[] }) {
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-  const w = 60;
-  const h = 28;
-  const pts = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1)) * w;
-      const y = h - ((v - min) / range) * h;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  const area = [
-    `0,${h}`,
-    ...data.map((v, i) => {
-      const x = (i / (data.length - 1)) * w;
-      const y = h - ((v - min) / range) * h;
-      return `${x},${y}`;
-    }),
-    `${w},${h}`,
-  ].join(" ");
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-16 h-7" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id={`sg-${data[0]}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="white" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="white" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={area} fill={`url(#sg-${data[0]})`} />
-      <polyline points={pts} fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 export default function StudentMetrics() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 md:gap-5">
-      {stats.map((s) => (
-        <div
-          key={s.title}
-          className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${s.gradient} p-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200`}
-        >
-          {/* Background decoration circles */}
-          <div className="absolute -top-4 -right-4 h-24 w-24 rounded-full bg-white/10" />
-          <div className="absolute -bottom-6 -right-2 h-16 w-16 rounded-full bg-white/10" />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 md:gap-6">
+      {stats.map((s) => {
+        const chartOptions: ApexOptions = {
+          chart: {
+            type: "area",
+            sparkline: { enabled: true },
+            animations: { enabled: true, easing: "easeinout", speed: 800 },
+          },
+          stroke: { curve: "smooth", width: 2 },
+          fill: {
+            type: "gradient",
+            gradient: {
+              shadeIntensity: 1,
+              opacityFrom: 0.45,
+              opacityTo: 0.05,
+              stops: [20, 100],
+            },
+          },
+          colors: [s.color],
+          tooltip: { enabled: false },
+        };
 
-          {/* Icon + Sparkline row */}
-          <div className="relative flex items-start justify-between">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 shadow-inner backdrop-blur-sm">
-              {s.icon}
+        return (
+          <div
+            key={s.title}
+            className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-xl dark:border-gray-800 dark:bg-white/[0.03]"
+          >
+            {/* Header: Icon + Trend */}
+            <div className="flex items-start justify-between">
+              <div 
+                className="flex h-11 w-11 items-center justify-center rounded-xl shadow-lg transition-transform group-hover:scale-110"
+                style={{ backgroundColor: s.color }}
+              >
+                {s.icon}
+              </div>
+              <div
+                className={`flex items-center gap-0.5 rounded-full px-2 py-1 text-[10px] font-bold ${
+                  s.trend >= 0 
+                    ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" 
+                    : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                }`}
+              >
+                {s.trend >= 0 ? <ArrowUpIcon className="w-3 h-3" /> : <ArrowDownIcon className="w-3 h-3" />}
+                {Math.abs(s.trend)}%
+              </div>
             </div>
-            <Sparkline data={s.sparkline} />
-          </div>
 
-          {/* Value */}
-          <div className="relative mt-4">
-            <p className="text-3xl font-extrabold tracking-tight text-white">{s.value}</p>
-            <p className="mt-1 text-xs font-medium text-white/70">{s.title}</p>
-          </div>
+            {/* Info */}
+            <div className="mt-4">
+              <h3 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+                {s.value}
+              </h3>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {s.title}
+              </p>
+            </div>
 
-          {/* Trend footer */}
-          <div className="relative mt-4 flex items-center justify-between border-t border-white/20 pt-3">
-            <span className="text-xs text-white/60">{s.sub}</span>
-            <span
-              className={`flex items-center gap-0.5 text-xs font-semibold ${
-                s.trend >= 0 ? "text-white" : "text-red-200"
-              }`}
-            >
-              {s.trend >= 0 ? (
-                <ArrowUpIcon className="w-3 h-3" />
-              ) : (
-                <ArrowDownIcon className="w-3 h-3" />
-              )}
-              {Math.abs(s.trend)}%
-            </span>
+            {/* Sparkline Overlay */}
+            <div className="absolute inset-x-0 bottom-0 h-14 opacity-50 group-hover:opacity-100 transition-opacity">
+              <Chart
+                options={chartOptions}
+                series={[{ name: s.title, data: s.sparkline }]}
+                type="area"
+                height={60}
+              />
+            </div>
+
+            {/* Subtext */}
+            <div className="mt-4 flex items-center text-[10px] text-gray-400 dark:text-gray-500">
+               {s.sub}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
