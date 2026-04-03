@@ -59,7 +59,7 @@ export default function StudentMetrics() {
           chart: {
             type: "area",
             sparkline: { enabled: true },
-            animations: { enabled: true, easing: "easeinout", speed: 800 },
+            animations: { enabled: true, speed: 800 },
           },
           stroke: { curve: "smooth", width: 2 },
           fill: {

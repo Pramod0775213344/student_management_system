@@ -18,7 +18,7 @@ export default function GradeDistributionChart() {
     chart: {
       type: "bar",
       toolbar: { show: false },
-      animations: { enabled: true, easing: "easeinout", speed: 800 },
+      animations: { enabled: true, speed: 800 },
     },
     plotOptions: {
       bar: {
@@ -30,7 +30,7 @@ export default function GradeDistributionChart() {
     },
     dataLabels: {
       enabled: true,
-      formatter: (val) => val,
+      formatter: (val: number) => val,
       offsetY: -20,
       style: { fontSize: "10px", colors: ["#64748b"] },
     },

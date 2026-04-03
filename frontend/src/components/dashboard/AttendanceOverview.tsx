@@ -28,7 +28,7 @@ export default function AttendanceOverview() {
     chart: {
       type: "area",
       toolbar: { show: false },
-      animations: { enabled: true, easing: "easeinout", speed: 800 },
+      animations: { enabled: true, speed: 800 },
     },
     stroke: { curve: "smooth", width: 3 },
     fill: {
