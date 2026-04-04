@@ -14,6 +14,6 @@ router.post('/generate-invoices', roleMiddleware(['admin']), feeController.gener
 
 // Payments & Overdue Details
 router.get('/invoice/:id', roleMiddleware(['admin', 'parent']), feeController.getInvoiceDetails);
-router.get('/student/:studentId', feeController.getStudentInvoices);
+router.get('/student/:studentId', roleMiddleware(['admin', 'parent', 'student']), feeController.getStudentInvoices);
 
 module.exports = router;

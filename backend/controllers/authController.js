@@ -1,4 +1,6 @@
 const User = require("../models/User");
+const Student = require("../models/Student");
+const Teacher = require("../models/Teacher");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -42,6 +44,8 @@ exports.login = async (req, res) => {
         id: user._id,
         role: user.role,
         email: user.email,
+        teacherId: user.teacherId,
+        studentId: user.studentId,
       },
     });
   } catch (err) {
@@ -49,6 +53,7 @@ exports.login = async (req, res) => {
     res.status(500).send("Server error");
   }
 };
+
 // Admin account creation logic
 exports.createAccount = async (req, res) => {
   const { email, password, role, linkedId } = req.body || {};
@@ -86,5 +91,39 @@ exports.createAccount = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Server error during account creation");
+  }
+};
+
+// Fetch students who don't have a user account
+exports.getUnaccountedStudents = async (req, res) => {
+  try {
+    const allStudentIds = await User.find({ role: "student" }).distinct("studentId");
+    const existingStudentIds = allStudentIds.filter(id => id); // Remove nulls
+    
+    const students = await Student.find({ _id: { $nin: existingStudentIds } })
+      .select("firstName lastName email _id")
+      .sort({ firstName: 1 });
+    
+    res.json(students);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server error fetching unaccounted students");
+  }
+};
+
+// Fetch teachers who don't have a user account
+exports.getUnaccountedTeachers = async (req, res) => {
+  try {
+    const allTeacherIds = await User.find({ role: "teacher" }).distinct("teacherId");
+    const existingTeacherIds = allTeacherIds.filter(id => id); // Remove nulls
+
+    const teachers = await Teacher.find({ _id: { $nin: existingTeacherIds } })
+      .select("firstName lastName email _id")
+      .sort({ firstName: 1 });
+
+    res.json(teachers);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server error fetching unaccounted teachers");
   }
 };

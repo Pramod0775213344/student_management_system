@@ -69,19 +69,26 @@ import SystemSettings from './pages/Administration/SystemSettings';
 import BranchSchoolSetup from './pages/Administration/BranchSchoolSetup';
 import CreateUser from './pages/Administration/CreateUser';
 
-const ProtectedRoute = ({ children }: { children: ReactNode }) => {
+const ProtectedRoute = ({ children, allowedRoles }: { children: ReactNode; allowedRoles?: string[] }) => {
   const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const role = user.role;
+
   if (!token) {
     return <Navigate to="/signin" />;
   }
+
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    // Role eka match wenne naththam dashboard ekata auto redirect karanawa
+    return <Navigate to="/dashboard" />;
+  }
+
   return children;
 };
 
 export default function App() {
   return (
     <>
-      {/* Toast notifications header ekata yataren nathi wenna z-index eka saha top offset eka haduwa */}
-      {/* Toast notifications visibility eka wadi karanna colors saha style eka customize kara */}
       <Toaster 
         position="top-right" 
         reverseOrder={false} 
@@ -140,53 +147,76 @@ export default function App() {
             <Route index path="/dashboard" element={<Home />} />
 
             {/* --- NEW ROUTES --- */}
-            <Route path="/students/add-student" element={<AddStudent />} />
-            <Route path="/students/edit-student/:id" element={<AddStudent />} />
-            <Route path="/students/student-list" element={<StudentList />} />
-            <Route path="/students/student-profile/:id" element={<StudentProfile />} />
-            <Route path="/students/enrollment-admission" element={<EnrollmentAdmission />} />
-            <Route path="/students/bulk-import" element={<BulkImport />} />
-            <Route path="/staff/add-teacher" element={<AddTeacher />} />
-            <Route path="/staff/teacher-list" element={<TeacherList />} />
-            <Route path="/staff/assign-subjects" element={<AssignSubjects />} />
-            <Route path="/staff/staff-attendance" element={<StaffAttendance />} />
-            <Route path="/academic/classes-grades" element={<ClassesGrades />} />
-            <Route path="/academic/subjects" element={<Subjects />} />
-            <Route path="/academic/curriculum" element={<Curriculum />} />
-            <Route path="/academic/academic-year-setup" element={<AcademicYearSetup />} />
-            <Route path="/attendance/student-attendance" element={<StudentAttendance />} />
-            <Route path="/attendance/teacher-attendance" element={<TeacherAttendance />} />
-            <Route path="/attendance/attendance-reports" element={<AttendanceReports />} />
-            <Route path="/fees/fee-structure" element={<FeeStructure />} />
-            <Route path="/fees/generate-invoices" element={<GenerateInvoices />} />
-            <Route path="/fees/payments" element={<Payments />} />
-            <Route path="/fees/pending-fees" element={<PendingFees />} />
-            <Route path="/fees/receipts" element={<Receipts />} />
-            <Route path="/exams/exam-schedule" element={<ExamSchedule />} />
-            <Route path="/exams/marks-entry" element={<MarksEntry />} />
-            <Route path="/exams/results" element={<Results />} />
-            <Route path="/exams/report-cards" element={<ReportCards />} />
+            {/* Student Management: Admins and Teachers only */}
+            <Route path="/students/add-student" element={<ProtectedRoute allowedRoles={['admin']}><AddStudent /></ProtectedRoute>} />
+            <Route path="/students/edit-student/:id" element={<ProtectedRoute allowedRoles={['admin']}><AddStudent /></ProtectedRoute>} />
+            <Route path="/students/student-list" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><StudentList /></ProtectedRoute>} />
+            <Route path="/students/student-profile/:id" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><StudentProfile /></ProtectedRoute>} />
+            <Route path="/students/enrollment-admission" element={<ProtectedRoute allowedRoles={['admin']}><EnrollmentAdmission /></ProtectedRoute>} />
+            <Route path="/students/bulk-import" element={<ProtectedRoute allowedRoles={['admin']}><BulkImport /></ProtectedRoute>} />
+
+            {/* Staff Management: Admin only */}
+            <Route path="/staff/add-teacher" element={<ProtectedRoute allowedRoles={['admin']}><AddTeacher /></ProtectedRoute>} />
+            <Route path="/staff/teacher-list" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><TeacherList /></ProtectedRoute>} />
+            <Route path="/staff/assign-subjects" element={<ProtectedRoute allowedRoles={['admin']}><AssignSubjects /></ProtectedRoute>} />
+            <Route path="/staff/staff-attendance" element={<ProtectedRoute allowedRoles={['admin']}><StaffAttendance /></ProtectedRoute>} />
+
+            {/* Academic Setup: Admin only */}
+            <Route path="/academic/classes-grades" element={<ProtectedRoute allowedRoles={['admin']}><ClassesGrades /></ProtectedRoute>} />
+            <Route path="/academic/subjects" element={<ProtectedRoute allowedRoles={['admin']}><Subjects /></ProtectedRoute>} />
+            <Route path="/academic/curriculum" element={<ProtectedRoute allowedRoles={['admin']}><Curriculum /></ProtectedRoute>} />
+            <Route path="/academic/academic-year-setup" element={<ProtectedRoute allowedRoles={['admin']}><AcademicYearSetup /></ProtectedRoute>} />
+
+            {/* Attendance: Admin and Teacher */}
+            <Route path="/attendance/student-attendance" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><StudentAttendance /></ProtectedRoute>} />
+            <Route path="/attendance/teacher-attendance" element={<ProtectedRoute allowedRoles={['admin']}><TeacherAttendance /></ProtectedRoute>} />
+            <Route path="/attendance/attendance-reports" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><AttendanceReports /></ProtectedRoute>} />
+
+            {/* Fees: Admin only */}
+            <Route path="/fees/fee-structure" element={<ProtectedRoute allowedRoles={['admin']}><FeeStructure /></ProtectedRoute>} />
+            <Route path="/fees/generate-invoices" element={<ProtectedRoute allowedRoles={['admin']}><GenerateInvoices /></ProtectedRoute>} />
+            <Route path="/fees/payments" element={<ProtectedRoute allowedRoles={['admin']}><Payments /></ProtectedRoute>} />
+            <Route path="/fees/pending-fees" element={<ProtectedRoute allowedRoles={['admin']}><PendingFees /></ProtectedRoute>} />
+            <Route path="/fees/receipts" element={<ProtectedRoute allowedRoles={['admin']}><Receipts /></ProtectedRoute>} />
+
+            {/* Exams: Admin and Teacher */}
+            <Route path="/exams/exam-schedule" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><ExamSchedule /></ProtectedRoute>} />
+            <Route path="/exams/marks-entry" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><MarksEntry /></ProtectedRoute>} />
+            <Route path="/exams/results" element={<ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}><Results /></ProtectedRoute>} />
+            <Route path="/exams/report-cards" element={<ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}><ReportCards /></ProtectedRoute>} />
+
+            {/* Timetable: All can view (mostly) */}
             <Route path="/timetable/class-timetable" element={<ClassTimetable />} />
             <Route path="/timetable/teacher-timetable" element={<TeacherTimetable />} />
-            <Route path="/timetable/room-allocation" element={<RoomAllocation />} />
-            <Route path="/communication/notices" element={<Notices />} />
-            <Route path="/communication/email-sms-send" element={<EmailSMSSend />} />
-            <Route path="/communication/parent-messages" element={<ParentMessages />} />
-            <Route path="/parents/parent-list" element={<ParentList />} />
-            <Route path="/parents/link-student" element={<LinkStudent />} />
-            <Route path="/parents/parent-portal-access" element={<ParentPortalAccess />} />
-            <Route path="/documents/upload-documents" element={<UploadDocuments />} />
-            <Route path="/documents/certificates" element={<Certificates />} />
+            <Route path="/timetable/room-allocation" element={<ProtectedRoute allowedRoles={['admin']}><RoomAllocation /></ProtectedRoute>} />
+
+            {/* Communication: Admin and Teacher */}
+            <Route path="/communication/notices" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><Notices /></ProtectedRoute>} />
+            <Route path="/communication/email-sms-send" element={<ProtectedRoute allowedRoles={['admin']}><EmailSMSSend /></ProtectedRoute>} />
+            <Route path="/communication/parent-messages" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><ParentMessages /></ProtectedRoute>} />
+
+            {/* Parents: Admin only */}
+            <Route path="/parents/parent-list" element={<ProtectedRoute allowedRoles={['admin']}><ParentList /></ProtectedRoute>} />
+            <Route path="/parents/link-student" element={<ProtectedRoute allowedRoles={['admin']}><LinkStudent /></ProtectedRoute>} />
+            <Route path="/parents/parent-portal-access" element={<ProtectedRoute allowedRoles={['admin']}><ParentPortalAccess /></ProtectedRoute>} />
+
+            {/* Documents: Admin and Teacher */}
+            <Route path="/documents/upload-documents" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><UploadDocuments /></ProtectedRoute>} />
+            <Route path="/documents/certificates" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><Certificates /></ProtectedRoute>} />
             <Route path="/documents/download-center" element={<DownloadCenter />} />
-            <Route path="/reports/attendance-reports" element={<ReportsAttendanceReports />} />
-            <Route path="/reports/academic-reports" element={<AcademicReports />} />
-            <Route path="/reports/financial-reports" element={<FinancialReports />} />
-            <Route path="/reports/export-pdf-excel" element={<ExportPDFExcel />} />
-            <Route path="/administration/users" element={<Users />} />
-            <Route path="/administration/roles-permissions" element={<RolesPermissions />} />
-            <Route path="/administration/system-settings" element={<SystemSettings />} />
-            <Route path="/administration/branch-school-setup" element={<BranchSchoolSetup />} />
-            <Route path="/administration/create-user" element={<CreateUser />} />
+
+            {/* Reports: Admin and Teacher */}
+            <Route path="/reports/attendance-reports" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><ReportsAttendanceReports /></ProtectedRoute>} />
+            <Route path="/reports/academic-reports" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><AcademicReports /></ProtectedRoute>} />
+            <Route path="/reports/financial-reports" element={<ProtectedRoute allowedRoles={['admin']}><FinancialReports /></ProtectedRoute>} />
+            <Route path="/reports/export-pdf-excel" element={<ProtectedRoute allowedRoles={['admin']}><ExportPDFExcel /></ProtectedRoute>} />
+
+            {/* Administration: Admin only */}
+            <Route path="/administration/users" element={<ProtectedRoute allowedRoles={['admin']}><Users /></ProtectedRoute>} />
+            <Route path="/administration/roles-permissions" element={<ProtectedRoute allowedRoles={['admin']}><RolesPermissions /></ProtectedRoute>} />
+            <Route path="/administration/system-settings" element={<ProtectedRoute allowedRoles={['admin']}><SystemSettings /></ProtectedRoute>} />
+            <Route path="/administration/branch-school-setup" element={<ProtectedRoute allowedRoles={['admin']}><BranchSchoolSetup /></ProtectedRoute>} />
+            <Route path="/administration/create-user" element={<ProtectedRoute allowedRoles={['admin']}><CreateUser /></ProtectedRoute>} />
 
             {/* Others Page */}
             <Route path="/profile" element={<UserProfiles />} />

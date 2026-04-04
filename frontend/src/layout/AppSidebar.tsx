@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 
 // Assume these icons are imported from an icon library
@@ -8,7 +8,8 @@ type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  roles?: string[]; // Allowed roles for this item
+  subItems?: { name: string; path: string; pro?: boolean; new?: boolean; roles?: string[] }[];
 };
 
 const navItems: NavItem[] = [
@@ -16,30 +17,34 @@ const navItems: NavItem[] = [
     icon: <GridIcon />,
     name: "Dashboard",
     path: "/dashboard",
+    roles: ["admin", "teacher", "student"],
   },
   {
     name: "Students",
     icon: <PageIcon />,
+    roles: ["admin", "teacher"],
     subItems: [
-      { name: "Add Student", path: "/students/add-student", pro: false },
+      { name: "Add Student", path: "/students/add-student", pro: false, roles: ["admin"] },
       { name: "Student List", path: "/students/student-list", pro: false },
-      { name: "Enrollment / Admission", path: "/students/enrollment-admission", pro: false },
-      { name: "Bulk Import", path: "/students/bulk-import", pro: false },
+      { name: "Enrollment / Admission", path: "/students/enrollment-admission", pro: false, roles: ["admin"] },
+      { name: "Bulk Import", path: "/students/bulk-import", pro: false, roles: ["admin"] },
     ],
   },
   {
     name: "Staff",
     icon: <PageIcon />,
+    roles: ["admin", "teacher"],
     subItems: [
-      { name: "Add Teacher", path: "/staff/add-teacher", pro: false },
+      { name: "Add Teacher", path: "/staff/add-teacher", pro: false, roles: ["admin"] },
       { name: "Teacher List", path: "/staff/teacher-list", pro: false },
-      { name: "Assign Subjects", path: "/staff/assign-subjects", pro: false },
-      { name: "Staff Attendance", path: "/staff/staff-attendance", pro: false },
+      { name: "Assign Subjects", path: "/staff/assign-subjects", pro: false, roles: ["admin"] },
+      { name: "Staff Attendance", path: "/staff/staff-attendance", pro: false, roles: ["admin"] },
     ],
   },
   {
     name: "Academic",
     icon: <PageIcon />,
+    roles: ["admin"],
     subItems: [
       { name: "Classes / Grades", path: "/academic/classes-grades", pro: false },
       { name: "Subjects", path: "/academic/subjects", pro: false },
@@ -50,15 +55,17 @@ const navItems: NavItem[] = [
   {
     name: "Attendance",
     icon: <PageIcon />,
+    roles: ["admin", "teacher"],
     subItems: [
       { name: "Student Attendance", path: "/attendance/student-attendance", pro: false },
-      { name: "Teacher Attendance", path: "/attendance/teacher-attendance", pro: false },
+      { name: "Teacher Attendance", path: "/attendance/teacher-attendance", pro: false, roles: ["admin"] },
       { name: "Attendance Reports", path: "/attendance/attendance-reports", pro: false },
     ],
   },
   {
     name: "Fees",
     icon: <PageIcon />,
+    roles: ["admin"],
     subItems: [
       { name: "Fee Structure", path: "/fees/fee-structure", pro: false },
       { name: "Generate Invoices", path: "/fees/generate-invoices", pro: false },
@@ -70,9 +77,10 @@ const navItems: NavItem[] = [
   {
     name: "Exams",
     icon: <PageIcon />,
+    roles: ["admin", "teacher", "student"],
     subItems: [
-      { name: "Exam Schedule", path: "/exams/exam-schedule", pro: false },
-      { name: "Marks Entry", path: "/exams/marks-entry", pro: false },
+      { name: "Exam Schedule", path: "/exams/exam-schedule", pro: false, roles: ["admin", "teacher"] },
+      { name: "Marks Entry", path: "/exams/marks-entry", pro: false, roles: ["admin", "teacher"] },
       { name: "Results", path: "/exams/results", pro: false },
       { name: "Report Cards", path: "/exams/report-cards", pro: false },
     ],
@@ -80,24 +88,27 @@ const navItems: NavItem[] = [
   {
     name: "Timetable",
     icon: <PageIcon />,
+    roles: ["admin", "teacher", "student"],
     subItems: [
-      { name: "Class Timetable", path: "/timetable/class-timetable", pro: false },
-      { name: "Teacher Timetable", path: "/timetable/teacher-timetable", pro: false },
-      { name: "Room Allocation", path: "/timetable/room-allocation", pro: false },
+      { name: "Class Timetable", path: "/timetable/class-timetable", pro: false, roles: ["admin"] },
+      { name: "Teacher Timetable", path: "/timetable/teacher-timetable", pro: false, roles: ["admin", "teacher"] },
+      { name: "Room Allocation", path: "/timetable/room-allocation", pro: false, roles: ["admin"] },
     ],
   },
   {
     name: "Communication",
     icon: <PageIcon />,
+    roles: ["admin", "teacher"],
     subItems: [
       { name: "Notices", path: "/communication/notices", pro: false },
-      { name: "Email / SMS Send", path: "/communication/email-sms-send", pro: false },
+      { name: "Email / SMS Send", path: "/communication/email-sms-send", pro: false, roles: ["admin"] },
       { name: "Parent Messages", path: "/communication/parent-messages", pro: false },
     ],
   },
   {
     name: "Parents",
     icon: <PageIcon />,
+    roles: ["admin"],
     subItems: [
       { name: "Parent List", path: "/parents/parent-list", pro: false },
       { name: "Link Student", path: "/parents/link-student", pro: false },
@@ -107,27 +118,30 @@ const navItems: NavItem[] = [
   {
     name: "Documents",
     icon: <PageIcon />,
+    roles: ["admin", "teacher", "student"],
     subItems: [
-      { name: "Upload Documents", path: "/documents/upload-documents", pro: false },
-      { name: "Certificates", path: "/documents/certificates", pro: false },
+      { name: "Upload Documents", path: "/documents/upload-documents", pro: false, roles: ["admin", "teacher"] },
+      { name: "Certificates", path: "/documents/certificates", pro: false, roles: ["admin", "teacher"] },
       { name: "Download Center", path: "/documents/download-center", pro: false },
     ],
   },
   {
     name: "Reports",
     icon: <PageIcon />,
+    roles: ["admin", "teacher"],
     subItems: [
       { name: "Attendance Reports", path: "/reports/attendance-reports", pro: false },
       { name: "Academic Reports", path: "/reports/academic-reports", pro: false },
-      { name: "Financial Reports", path: "/reports/financial-reports", pro: false },
-      { name: "Export PDF/Excel", path: "/reports/export-pdf-excel", pro: false },
+      { name: "Financial Reports", path: "/reports/financial-reports", pro: false, roles: ["admin"] },
+      { name: "Export PDF/Excel", path: "/reports/export-pdf-excel", pro: false, roles: ["admin"] },
     ],
   },
   {
     name: "Administration",
     icon: <PageIcon />,
+    roles: ["admin"],
     subItems: [
-      { name: "Users", path: "/administration/users", pro: false },
+      { name: "Users", path: "/administration/create-user", pro: false },
       { name: "Roles & Permissions", path: "/administration/roles-permissions", pro: false },
       { name: "System Settings", path: "/administration/system-settings", pro: false },
       { name: "Branch / School Setup", path: "/administration/branch-school-setup", pro: false },
@@ -139,6 +153,7 @@ const othersItems: NavItem[] = [
   {
     icon: <PieChartIcon />,
     name: "Charts",
+    roles: ["admin"],
     subItems: [
       { name: "Line Chart", path: "/line-chart", pro: false },
       { name: "Bar Chart", path: "/bar-chart", pro: false },
@@ -147,6 +162,7 @@ const othersItems: NavItem[] = [
   {
     icon: <BoxCubeIcon />,
     name: "UI Elements",
+    roles: ["admin"],
     subItems: [
       { name: "Alerts", path: "/alerts", pro: false },
       { name: "Avatar", path: "/avatars", pro: false },
@@ -159,6 +175,7 @@ const othersItems: NavItem[] = [
   {
     icon: <PlugInIcon />,
     name: "Authentication",
+    roles: ["admin"],
     subItems: [
       { name: "Sign In", path: "/signin", pro: false },
       { name: "Sign Up", path: "/signup", pro: false },
@@ -169,6 +186,30 @@ const othersItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
+
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const userRole = user.role || "student"; // Default to student if not found
+
+  // Filter items based on role - Stable references with useMemo
+  const filteredNavItems = useMemo(() => 
+    navItems
+      .filter((item) => !item.roles || item.roles.includes(userRole))
+      .map((item) => ({
+        ...item,
+        subItems: item.subItems?.filter((sub) => !sub.roles || sub.roles.includes(userRole)),
+      })),
+    [userRole]
+  );
+
+  const filteredOthersItems = useMemo(() => 
+    othersItems
+      .filter((item) => !item.roles || item.roles.includes(userRole))
+      .map((item) => ({
+        ...item,
+        subItems: item.subItems?.filter((sub) => !sub.roles || sub.roles.includes(userRole)),
+      })),
+    [userRole]
+  );
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
@@ -181,28 +222,22 @@ const AppSidebar: React.FC = () => {
   const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
 
   useEffect(() => {
-    let submenuMatched = false;
     ["main", "others"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : othersItems;
-      items.forEach((nav, index) => {
+      const items = menuType === "main" ? filteredNavItems : filteredOthersItems;
+      items.forEach((nav: NavItem, index: number) => {
         if (nav.subItems) {
-          nav.subItems.forEach((subItem) => {
+          nav.subItems.forEach((subItem: { path: string }) => {
             if (isActive(subItem.path)) {
               setOpenSubmenu({
                 type: menuType as "main" | "others",
                 index,
               });
-              submenuMatched = true;
             }
           });
         }
       });
     });
-
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
-  }, [location, isActive]);
+  }, [location.pathname, isActive, filteredNavItems, filteredOthersItems]);
 
   useEffect(() => {
     if (openSubmenu !== null) {
@@ -324,13 +359,13 @@ const AppSidebar: React.FC = () => {
               <h2 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"}`}>
                 {isExpanded || isHovered || isMobileOpen ? "Menu" : <HorizontaLDots className="size-6" />}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(filteredNavItems, "main")}
             </div>
             <div className="">
               <h2 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"}`}>
                 {isExpanded || isHovered || isMobileOpen ? "Others" : <HorizontaLDots />}
               </h2>
-              {renderMenuItems(othersItems, "others")}
+              {renderMenuItems(filteredOthersItems, "others")}
             </div>
           </div>
         </nav>

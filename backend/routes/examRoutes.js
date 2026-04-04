@@ -13,6 +13,6 @@ router.get('/', roleMiddleware(['admin', 'teacher']), examController.getAllExams
 // Mark Records - Teachers and Admins can manage marks
 router.post('/marks/batch', roleMiddleware(['admin', 'teacher']), examController.submitBatchMarks);
 router.get('/marks', roleMiddleware(['admin', 'teacher']), examController.getMarksByContext);
-router.get('/performance/:studentId', examController.getStudentPerformance);
+router.get('/performance/:studentId', roleMiddleware(['admin', 'teacher', 'student']), examController.getStudentPerformance);
 
 module.exports = router;

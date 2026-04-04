@@ -28,6 +28,7 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const examRoutes = require("./routes/examRoutes");
 const feeRoutes = require("./routes/feeRoutes");
 const teacherRoutes = require("./routes/teacherRoutes");
+const timetableRoutes = require("./routes/timetableRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
@@ -36,6 +37,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/fees", feeRoutes);
 app.use("/api/teachers", teacherRoutes);
+app.use("/api/timetable", timetableRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

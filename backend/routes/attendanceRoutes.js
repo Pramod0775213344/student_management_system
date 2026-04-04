@@ -9,7 +9,7 @@ router.use(authMiddleware);
 // Student Attendance
 router.post('/student', roleMiddleware(['admin', 'teacher']), attendanceController.markStudentAttendance);
 router.get('/student', roleMiddleware(['admin', 'teacher']), attendanceController.getAllStudentAttendance);
-router.get('/student/summary/:studentId', attendanceController.getStudentAttendanceSummary);
+router.get('/student/summary/:studentId', roleMiddleware(['admin', 'teacher', 'student']), attendanceController.getStudentAttendanceSummary);
 
 // Staff Attendance
 router.post('/staff', roleMiddleware(['admin']), attendanceController.markStaffAttendance);

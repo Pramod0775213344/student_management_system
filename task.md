@@ -1,0 +1,8 @@
+- [x] Setup Backend: Fix `roleMiddleware.js`
+- [x] Setup Backend: Apply role-based protection to routes
+- [x] Setup Frontend: Update `AppSidebar.tsx` with role labels and filtering
+- [x] Setup Frontend: Update `ProtectedRoute` in `App.tsx`
+- [x] Setup Frontend: Implement role-based navigation protection in `App.tsx`
+- [x] Setup Frontend: Improve `CreateUser.tsx` UI and error handling
+- [x] Verify: Test Admin, Teacher, and Student logins manually
+- [x] Extra: Added `required` prop to `InputField` component.
