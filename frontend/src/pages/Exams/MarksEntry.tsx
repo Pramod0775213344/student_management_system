@@ -19,12 +19,43 @@ interface MarkInput {
   remarks: string;
 }
 
+interface Assignment {
+  subject: { _id: string; subjectName: string };
+  classGrade: { _id: string; className: string; section: string };
+}
+
+interface AcademicYear {
+  _id: string;
+  name: string;
+  status: string;
+}
+
+interface Exam {
+  _id: string;
+  name: string;
+}
+
+interface ClassData {
+  _id: string;
+  className: string;
+  section: string;
+}
+
+interface Subject {
+  _id: string;
+  subjectName: string;
+}
+
 export default function MarksEntry() {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const isTeacher = user.role === "teacher";
+
   // Context States
-  const [academicYears, setAcademicYears] = useState<any[]>([]);
-  const [exams, setExams] = useState<any[]>([]);
-  const [classes, setClasses] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedExam, setSelectedExam] = useState("");
@@ -40,7 +71,7 @@ export default function MarksEntry() {
 
   const fetchInitialData = useCallback(async () => {
     try {
-      const headers = { Authorization: localStorage.getItem("token") || "" };
+      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [yearRes, examRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/academic/years`, { headers }),
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/exams`, { headers })
@@ -49,19 +80,28 @@ export default function MarksEntry() {
       if (yearRes.ok) {
         const yData = await yearRes.json();
         setAcademicYears(yData);
-        const active = yData.find((y: any) => y.status === "Active");
+        const active = yData.find((y: AcademicYear) => y.status === "Active");
         if (active) setSelectedYear(active._id);
       }
       if (examRes.ok) setExams(await examRes.json());
+
+      // If teacher, fetch their specific assignments
+      if (isTeacher && user.teacherId) {
+          const assignRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/exams/teacher-results/${user.teacherId}`, { headers });
+          if (assignRes.ok) {
+              const data = await assignRes.json();
+              setAssignments(data.assignments || []);
+          }
+      }
     } catch {
       toast.error("Failed to load setup data");
     }
-  }, []);
+  }, [isTeacher, user.teacherId]);
 
-  const fetchClassesAndSubjects = useCallback(async () => {
-    if (!selectedYear) return;
+  const fetchGlobalContext = useCallback(async () => {
+    if (!selectedYear || isTeacher) return; // Teachers use assignments
     try {
-      const headers = { Authorization: localStorage.getItem("token") || "" };
+      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [classRes, subRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/academic/classes/${selectedYear}`, { headers }),
         fetch(`${import.meta.env.VITE_API_BASE_URL}/api/academic/subjects`, { headers })
@@ -71,13 +111,13 @@ export default function MarksEntry() {
     } catch {
       toast.error("Failed to load academic context");
     }
-  }, [selectedYear]);
+  }, [selectedYear, isTeacher]);
 
   const fetchResultSheet = useCallback(async () => {
     if (!selectedClass || !selectedSubject || !selectedExam) return;
     setFetching(true);
     try {
-      const headers = { Authorization: localStorage.getItem("token") || "" };
+      const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       
       // [1] Get all students in this class
       const studentRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/students?classId=${selectedClass}&academicYearId=${selectedYear}`, { headers });
@@ -93,10 +133,11 @@ export default function MarksEntry() {
         newMarks[s._id] = { student: s._id, marks: 0, remarks: "" };
       });
 
-      existingMarks.forEach((m: any) => {
-        if (newMarks[m.student]) {
-          newMarks[m.student] = { 
-            student: m.student, 
+      existingMarks.forEach((m: { student: { _id?: string } | string; marks: number; remarks: string }) => {
+        const sId = typeof m.student === 'string' ? m.student : m.student?._id;
+        if (sId && newMarks[sId]) {
+          newMarks[sId] = { 
+            student: sId, 
             marks: m.marks || 0, 
             remarks: m.remarks || "" 
           };
@@ -112,7 +153,7 @@ export default function MarksEntry() {
   }, [selectedClass, selectedSubject, selectedExam, selectedYear]);
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
-  useEffect(() => { fetchClassesAndSubjects(); }, [fetchClassesAndSubjects]);
+  useEffect(() => { fetchGlobalContext(); }, [fetchGlobalContext]);
   useEffect(() => { fetchResultSheet(); }, [fetchResultSheet]);
 
   const handleMarkChange = (studentId: string, val: string) => {
@@ -135,7 +176,7 @@ export default function MarksEntry() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: localStorage.getItem("token") || ""
+          Authorization: `Bearer ${localStorage.getItem("token")}`
         },
         body: JSON.stringify({
           exam: selectedExam,
@@ -181,18 +222,40 @@ export default function MarksEntry() {
         
         <ComponentCard title="Target Group" desc="Select class and subject">
            <div className="space-y-4">
-              <Select 
-                placeholder="Class/Grade" 
-                value={selectedClass} 
-                onChange={setSelectedClass} 
-                options={classes.map(c => ({ value: c._id, label: `${c.name} - ${c.section}` }))} 
-              />
-              <Select 
-                placeholder="Subject" 
-                value={selectedSubject} 
-                onChange={setSelectedSubject} 
-                options={subjects.map(s => ({ value: s._id, label: s.subjectName }))} 
-              />
+              {isTeacher ? (
+                <>
+                  <Select 
+                    placeholder="My Classes" 
+                    value={selectedClass} 
+                    onChange={setSelectedClass} 
+                    options={Array.from(new Set(assignments.map(a => a.classGrade._id))).map(id => {
+                        const a = assignments.find(as => as.classGrade._id === id);
+                        return { value: id, label: `${a?.classGrade.className} - ${a?.classGrade.section}` };
+                    })} 
+                  />
+                  <Select 
+                    placeholder="My Subjects" 
+                    value={selectedSubject} 
+                    onChange={setSelectedSubject} 
+                    options={assignments.filter(a => a.classGrade._id === selectedClass).map(a => ({ value: a.subject._id, label: a.subject.subjectName }))} 
+                  />
+                </>
+              ) : (
+                <>
+                  <Select 
+                    placeholder="Class/Grade" 
+                    value={selectedClass} 
+                    onChange={setSelectedClass} 
+                    options={classes.map(c => ({ value: c._id, label: `${c.className} - ${c.section}` }))} 
+                  />
+                  <Select 
+                    placeholder="Subject" 
+                    value={selectedSubject} 
+                    onChange={setSelectedSubject} 
+                    options={subjects.map(s => ({ value: s._id, label: s.subjectName }))} 
+                  />
+                </>
+              )}
            </div>
         </ComponentCard>
 

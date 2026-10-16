@@ -132,3 +132,15 @@ exports.deleteSubject = async (req, res) => {
     res.status(500).send("Error deleting Subject");
   }
 };
+
+exports.getClassesByTeacher = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const classes = await ClassGrade.find({ classTeacher: teacherId })
+      .populate("academicYear", "name status")
+      .sort({ name: 1 });
+    res.json(classes);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching assigned classes" });
+  }
+};

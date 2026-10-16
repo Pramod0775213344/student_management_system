@@ -1,15 +1,22 @@
 import { useState, useEffect } from "react";
-import PageBreadcrumb from "../../components/common/PageBreadCrumb";
+import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
 import InputField from "../../components/form/input/InputField";
+import Select from "../../components/form/Select";
 import { toast } from "react-hot-toast";
 
 interface AcademicYear {
   _id: string;
   name: string;
   status: "Active" | "Inactive";
+}
+
+interface Teacher {
+  _id: string;
+  firstName: string;
+  lastName: string;
 }
 
 interface ClassGrade {
@@ -19,11 +26,13 @@ interface ClassGrade {
   capacity: number;
   roomNumber?: string;
   academicYear: string;
+  classTeacher?: Teacher | string;
 }
 
 export default function ClassesGrades() {
   const [classes, setClasses] = useState<ClassGrade[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [selectedYearId, setSelectedYearId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,7 +43,8 @@ export default function ClassesGrades() {
     section: "",
     capacity: 40,
     roomNumber: "",
-    academicYear: ""
+    academicYear: "",
+    classTeacher: ""
   });
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -42,14 +52,15 @@ export default function ClassesGrades() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/academic/years`, {
-          headers: { Authorization: localStorage.getItem("token") || "" }
-        });
-        if (response.ok) {
-          const years = await response.json();
+        const headers = { Authorization: localStorage.getItem("token") || "" };
+        const [yearRes, teacherRes] = await Promise.all([
+          fetch(`${import.meta.env.VITE_API_BASE_URL}/api/academic/years`, { headers }),
+          fetch(`${import.meta.env.VITE_API_BASE_URL}/api/teachers`, { headers })
+        ]);
+
+        if (yearRes.ok) {
+          const years = await yearRes.json();
           setAcademicYears(years);
-          
-          // Auto-select active year if available
           const activeYear = years.find((y: AcademicYear) => y.status === "Active");
           if (activeYear) {
             setSelectedYearId(activeYear._id);
@@ -59,8 +70,12 @@ export default function ClassesGrades() {
             setFormData(prev => ({ ...prev, academicYear: years[0]._id }));
           }
         }
+
+        if (teacherRes.ok) {
+          setTeachers(await teacherRes.json());
+        }
       } catch {
-        toast.error("Failed to load sessions");
+        toast.error("Failed to load initial data");
       }
     };
     fetchInitialData();
@@ -90,6 +105,11 @@ export default function ClassesGrades() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.academicYear) {
+      toast.error("Select an Academic Year first");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const url = editingId 
@@ -107,13 +127,15 @@ export default function ClassesGrades() {
 
       if (response.ok) {
         toast.success(`Class ${editingId ? "updated" : "created"} successfully`);
-        setFormData({ ...formData, name: "", section: "", capacity: 40, roomNumber: "" });
+        setFormData({ name: "", section: "", capacity: 40, roomNumber: "", academicYear: selectedYearId, classTeacher: "" });
         setEditingId(null);
-        // Re-fetch to show latest data
+        // Refresh classes
         const refreshResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/academic/classes/${selectedYearId}`, {
           headers: { Authorization: localStorage.getItem("token") || "" }
         });
         if (refreshResponse.ok) setClasses(await refreshResponse.json());
+      } else {
+        toast.error("Failed to save class");
       }
     } catch {
       toast.error("Operation failed");
@@ -124,17 +146,19 @@ export default function ClassesGrades() {
 
   const handleEdit = (cls: ClassGrade) => {
     setEditingId(cls._id);
+    const teacherId = typeof cls.classTeacher === "object" ? cls.classTeacher?._id : cls.classTeacher;
     setFormData({
       name: cls.name,
       section: cls.section,
       capacity: cls.capacity,
       roomNumber: cls.roomNumber || "",
-      academicYear: selectedYearId
+      academicYear: selectedYearId,
+      classTeacher: teacherId || ""
     });
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this class?")) return;
+    if (!window.confirm("Delete this class? All students linked to it will lose their association.")) return;
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/academic/classes/${id}`, {
         method: "DELETE",
@@ -155,7 +179,7 @@ export default function ClassesGrades() {
         title="Classes / Grades | EduSphere" 
         description="Manage school classes and grade sections"
       />
-      <PageBreadcrumb pageTitle="Classes / Grades" />
+      <PageBreadCrumb pageTitle="Classes / Grades" />
 
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -201,6 +225,15 @@ export default function ClassesGrades() {
                 onChange={(e) => setFormData({ ...formData, section: e.target.value })}
               />
             </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Class Teacher</label>
+              <Select
+                options={teachers.map(t => ({ value: t._id, label: `${t.firstName} ${t.lastName}` }))}
+                value={formData.classTeacher}
+                onChange={(val) => setFormData({ ...formData, classTeacher: val })}
+                placeholder="Assign a Teacher"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Capacity</label>
@@ -228,7 +261,7 @@ export default function ClassesGrades() {
                   type="button"
                   onClick={() => {
                     setEditingId(null);
-                    setFormData({ ...formData, name: "", section: "", capacity: 40, roomNumber: "" });
+                    setFormData({ ...formData, name: "", section: "", capacity: 40, roomNumber: "", classTeacher: "" });
                   }}
                   className="mt-2 w-full text-sm text-gray-500 hover:underline"
                 >
@@ -246,7 +279,7 @@ export default function ClassesGrades() {
                 <tr>
                   <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Class Name</th>
                   <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Section</th>
-                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Capacity</th>
+                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Class Teacher</th>
                   <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Room</th>
                   <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400 text-right">Actions</th>
                 </tr>
@@ -254,11 +287,11 @@ export default function ClassesGrades() {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-gray-500">Loading classes...</td>
+                    <td colSpan={5} className="py-10 text-center text-gray-500 italic">Syncing session data...</td>
                   </tr>
                 ) : classes.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-gray-500">No classes found for this session</td>
+                    <td colSpan={5} className="py-10 text-center text-gray-500 italic">No classes defined for this academic session</td>
                   </tr>
                 ) : (
                   classes.map((cls) => (
@@ -267,12 +300,23 @@ export default function ClassesGrades() {
                       <td className="px-6 py-4">
                         <Badge color="primary" variant="light">{cls.section}</Badge>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 font-medium">{cls.capacity} Students</td>
+                      <td className="px-6 py-4">
+                        {typeof cls.classTeacher === "object" ? (
+                           <div className="flex items-center gap-2">
+                             <div className="h-2 w-2 rounded-full bg-success-500"></div>
+                             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                               {cls.classTeacher.firstName} {cls.classTeacher.lastName}
+                             </span>
+                           </div>
+                        ) : (
+                           <span className="text-xs text-gray-400 italic">Unassigned</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-500 font-medium">{cls.roomNumber || "N/A"}</td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <button onClick={() => handleEdit(cls)} className="text-brand-500 text-sm font-bold">Edit</button>
-                          <button onClick={() => handleDelete(cls._id)} className="text-error-500 text-sm font-bold">Delete</button>
+                        <div className="flex items-center justify-end gap-4">
+                          <button onClick={() => handleEdit(cls)} className="text-brand-500 text-sm font-bold hover:underline">Edit</button>
+                          <button onClick={() => handleDelete(cls._id)} className="text-error-500 text-sm font-bold hover:underline">Delete</button>
                         </div>
                       </td>
                     </tr>
@@ -286,3 +330,4 @@ export default function ClassesGrades() {
     </div>
   );
 }
+

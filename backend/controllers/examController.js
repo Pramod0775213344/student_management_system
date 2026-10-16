@@ -1,6 +1,4 @@
-const Exam = require("../models/Exam");
-const MarkRecord = require("../models/MarkRecord");
-const performanceUtils = require("../utils/performanceUtils");
+const SubjectAssignment = require("../models/SubjectAssignment");
 
 // EXAM SCHEDULING
 exports.createExamSchedule = async (req, res) => {
@@ -58,11 +56,12 @@ exports.submitBatchMarks = async (req, res) => {
 
 exports.getMarksByContext = async (req, res) => {
   try {
-    const { exam, subject, classId } = req.query;
-    const filter = { exam, subject };
+    const { exam, subject } = req.query;
+    const filter = {};
+    if (exam) filter.exam = exam;
+    if (subject) filter.subject = subject;
     
-    // We fetch all records for this exam/subject
-    const records = await MarkRecord.find(filter);
+    const records = await MarkRecord.find(filter).populate("student", "firstName lastName studentID");
     res.status(200).json(records);
   } catch (err) {
     res.status(500).json({ message: "Error fetching marks" });
@@ -70,14 +69,30 @@ exports.getMarksByContext = async (req, res) => {
 };
 
 /**
- * Get Student Performance across a term
+ * Get Student Report Card (Personalized)
  */
-exports.getStudentPerformance = async (req, res) => {
+exports.getStudentReportCard = async (req, res) => {
   try {
-    const studentId = req.params.studentId;
-    const records = await MarkRecord.find({ student: studentId }).populate("subject").populate("exam");
+    const { studentId } = req.params;
+    const { academicYear } = req.query;
     
-    const totalGPA = records.reduce((acc, curr) => acc + curr.gpa, 0);
+    // Fetch all mark records for this student and populate exam to filter by academic year
+    const rawRecords = await MarkRecord.find({ student: studentId })
+      .populate({
+        path: "exam",
+        match: academicYear ? { academicYear } : {},
+        populate: { path: "academicYear", select: "name" }
+      })
+      .populate("subject", "subjectName subjectCode");
+
+    // Filter out records where the exam didn't match the academicYear filter
+    const records = rawRecords.filter(r => r.exam);
+
+    if (records.length === 0) {
+      return res.status(200).json({ records: [], cgpa: "0.00", message: "No records found" });
+    }
+
+    const totalGPA = records.reduce((acc, curr) => acc + (curr.gpa || 0), 0);
     const avgGPA = totalGPA / records.length;
     
     res.json({
@@ -87,6 +102,32 @@ exports.getStudentPerformance = async (req, res) => {
       status: avgGPA >= 2.0 ? "Pass" : "Fail"
     });
   } catch (err) {
-    res.status(500).send("Error fetching performance details");
+    res.status(500).json({ message: "Error generating report card", error: err.message });
+  }
+};
+
+/**
+ * Get results for subjects assigned to a specific teacher
+ */
+exports.getTeacherAssignedResults = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    
+    // 1. Get subjects assigned to this teacher
+    const assignments = await SubjectAssignment.find({ teacher: teacherId })
+      .populate("subject", "subjectName")
+      .populate("classGrade", "className section");
+
+    const subjectIds = assignments.map(a => a.subject._id);
+
+    // 2. Get marks for these subjects
+    const marks = await MarkRecord.find({ subject: { $in: subjectIds } })
+      .populate("student", "firstName lastName studentID")
+      .populate("subject", "subjectName")
+      .populate("exam", "examName");
+
+    res.status(200).json({ assignments, marks });
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching teacher results", error: err.message });
   }
 };

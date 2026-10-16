@@ -8,8 +8,10 @@ dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 const app = express();
 const cors = require('cors');
-
-app.use(cors());
+app.use(cors({
+  origin: ['https://student-management-system-sandy-gamma.vercel.app'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -53,7 +55,7 @@ app.get("/api/health", (req, res) => {
 app.use((err, req, res, next) => {
   console.error("SERVER CRASH:", err);
   res.status(500).json({
-    message: "සර්වර් එකේ දෝෂයක් සිදුවිය (Internal Server Error)",
+    message: "(Internal Server Error)",
     error: err.message,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });

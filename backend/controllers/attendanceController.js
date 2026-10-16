@@ -11,6 +11,15 @@ exports.markStudentAttendance = async (req, res) => {
     const rollDate = new Date(date);
     rollDate.setHours(0,0,0,0);
 
+    // SECURITY CHECK: If teacher, verify they are assigned to this class
+    if (req.user.role === "teacher") {
+      const ClassGrade = require("../models/ClassGrade");
+      const assignedClass = await ClassGrade.findOne({ _id: classId, classTeacher: req.user.teacherId });
+      if (!assignedClass) {
+        return res.status(403).json({ message: "You are not authorized to mark attendance for this class" });
+      }
+    }
+
     let attendance = await StudentAttendance.findOne({ student: studentId, date: rollDate });
     
     if (attendance) {
