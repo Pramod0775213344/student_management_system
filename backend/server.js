@@ -10,11 +10,20 @@ const app = express();
 const cors = require('cors');
 const allowedOrigins = [
   'https://student-management-system-sandy-gamma.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (requestOrigin, callback) => {
+    if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS origin not allowed: ${requestOrigin}`));
+  },
   credentials: true
 }));
 app.use(express.json());
