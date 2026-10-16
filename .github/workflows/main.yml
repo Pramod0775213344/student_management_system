@@ -1,32 +1,76 @@
-name: CI Pipeline
+name: CI and Deploy Backend
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/main.yml'
   pull_request:
-    branches: [ main, master ]
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/main.yml'
 
 jobs:
-  build-and-test:
+  validate:
+    name: Validate application
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18.x'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
 
-    - name: Backend - Install Dependencies
-      run: |
-        cd backend
-        npm install
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
 
-    - name: Frontend - Install Dependencies and Build
-      run: |
-        cd frontend
-        npm install
-        npm run build # Verify that frontend builds correctly
-      env:
-        VITE_API_BASE_URL: http://localhost:5000 # Placeholder for build check
+      - name: Check backend syntax
+        working-directory: backend
+        run: |
+          node --check server.js
+          node --check controllers/authController.js
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://studentms.duckdns.org
+        run: npm run build
+
+  deploy:
+    name: Deploy backend to Oracle VM
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy backend to Oracle VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ubuntu
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/student_management_system
+            git pull origin main
+            cd backend
+            npm ci --omit=dev
+            pm2 restart backend --update-env
+            sleep 5
+            curl --fail --silent --show-error http://localhost:5000/api/health
