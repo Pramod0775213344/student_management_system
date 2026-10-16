@@ -8,8 +8,13 @@ dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 const app = express();
 const cors = require('cors');
+const allowedOrigins = [
+  'https://student-management-system-sandy-gamma.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: ['https://student-management-system-sandy-gamma.vercel.app'],
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());
@@ -62,6 +67,8 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}...`);
+const HOST = process.env.HOST || '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on ${HOST}:${PORT}...`);
 });
