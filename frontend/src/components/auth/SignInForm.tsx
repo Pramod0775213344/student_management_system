@@ -25,9 +25,20 @@ export default function SignInForm() {
       },
       body: JSON.stringify({ email, password }),
     }).then(async (response) => {
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: { message?: string; token?: string; user?: unknown };
+
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data = { message: responseText || "Unable to sign in" };
+      }
+
       if (!response.ok) {
         throw new Error(data.message || "Invalid email or password");
+      }
+      if (!data.token || !data.user) {
+        throw new Error("Invalid response from server");
       }
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));

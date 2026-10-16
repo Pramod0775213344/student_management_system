@@ -9,14 +9,16 @@ exports.login = async (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
-    return res.status(400).send("Email and password are required. Make sure you are sending JSON data.");
+    return res.status(400).json({
+      message: "Email and password are required. Make sure you are sending JSON data."
+    });
   }
 
   try {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(401).send("Invalid email or password");
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     // user type karan password ekaia databe passwrod ekai match karanwaa
@@ -24,7 +26,7 @@ exports.login = async (req, res) => {
 
     // meka false wunoth error masg eka sen ekaranwa
     if (!isMatch) {
-      return res.status(401).send("Invalid email or password");
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     // jwt payload
@@ -50,7 +52,7 @@ exports.login = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).send("Server error");
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -59,13 +61,15 @@ exports.createAccount = async (req, res) => {
   const { email, password, role, linkedId } = req.body || {};
 
   if (!email || !password || !role) {
-    return res.status(400).send("Email, password, and role are required.");
+    return res.status(400).json({
+      message: "Email, password, and role are required."
+    });
   }
 
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).send("User already exists with this email.");
+      return res.status(400).json({ message: "User already exists with this email." });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -90,7 +94,7 @@ exports.createAccount = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).send("Server error during account creation");
+    res.status(500).json({ message: "Server error during account creation" });
   }
 };
 
@@ -107,7 +111,7 @@ exports.getUnaccountedStudents = async (req, res) => {
     res.json(students);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Server error fetching unaccounted students");
+    res.status(500).json({ message: "Server error fetching unaccounted students" });
   }
 };
 
@@ -124,6 +128,6 @@ exports.getUnaccountedTeachers = async (req, res) => {
     res.json(teachers);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Server error fetching unaccounted teachers");
+    res.status(500).json({ message: "Server error fetching unaccounted teachers" });
   }
 };
